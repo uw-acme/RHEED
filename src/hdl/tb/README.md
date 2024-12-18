@@ -12,9 +12,9 @@ The registers are combined into a single bus that is connected to the dummy HLS4
             
 Testbench file compilation order
 
-../github/RHEED/src/hdl/fpga/rhd_version_pkg.vhdl 
-../github/RHEED/src/hdl/fpga/rhd_fpga_pkg.vhdl 
-../github/RHEED/src/hdl/fpga/rhd_blink.vhdl 
+../github/RHEED/src/hdl/fpga/rhd_version_pkg.vhdl
+../github/RHEED/src/hdl/fpga/rhd_fpga_pkg.vhdl
+../github/RHEED/src/hdl/fpga/rhd_blink.vhdl
 ../github/RHEED/src/hdl/cpuint/rhd_serial_pkg_50MHz.vhdl 
 ../github/RHEED/src/hdl/cpuint/rhd_uart.vhdl 
 ../github/RHEED/src/hdl/cpuint/rhd_uart2cpu.vhdl 
