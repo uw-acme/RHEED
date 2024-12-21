@@ -1,7 +1,7 @@
 #---------------------------------------------------------------
 # GUI program for RHEED FPGA 
 #---------------------------------------------------------------
-# Initial RHEED FPGA has 10 32-bit r/w parameter registers 
+# Initial RHEED FPGA has 10 (NUM_REGS) 32-bit r/w parameter registers, 
 # a read-only version number register and a r/w LED control reg.
 #
 # Assuming that each 32-bit register contains a set of 16-bit X,Y
@@ -17,8 +17,7 @@ import serial.tools.list_ports
 # Configuration
 NUM_REGS     = 10
 
-
-# Version reg address is 0x2000 i.e. bit 13 set
+# FPGA register addresses
 ADDR_REG_PARAM0     = 0x0000
 ADDR_REG_PARAM9     = 0x0009
 ADDR_REG_VERSION    = 0x000E
@@ -41,7 +40,7 @@ strVersion.set("- -")
 
 
 #---------------------------------------------------------------
-# Initialize the X,Y co-ordinates
+# Initialize the X,Y co-ordinates in the entry boxes
 #---------------------------------------------------------------
 listX = [] 
 listY = [] 
@@ -161,7 +160,7 @@ def set_xy(ser, index):
 # Set all registers to values in Entry boxes
 #---------------------------------------------------------------
 def set_all_xy():
-    for i in range(10):
+    for i in range(NUM_REGS):
         set_xy(ser, i)
 
 
@@ -203,7 +202,7 @@ else:
 
 #---------------------------------------------------------------
 # Build GUI
-# Two columns of 10 entry boxes each. One col has the header 'X'
+# Two columns of NUM_REGS entry boxes each. One col has the header 'X'
 # and the other is 'Y'
 #---------------------------------------------------------------
 frameSerialPorts = Frame(root, padx = 1, pady = 1)
@@ -221,7 +220,7 @@ frameSetXY.pack(side=TOP, padx = 5, pady = 5)
 
 
 #-----------------------------------------------------------------------------------------------------------------------------
-# Frame for Registers  0 to 9.  
+# Frame for Registers  0 to NUM_REGS-1.  
 #-----------------------------------------------------------------------------------------------------------------------------
 arrFrameCh      = []
 frameParamTop       = Frame(root, borderwidth=3, padx = 5, pady = 0)
@@ -230,7 +229,7 @@ Label (frameParamHeader, text = 'Point         X               Y     ').pack(sid
 frameParamHeader.pack(side=TOP, padx = 5, pady = 0)
 
 frameRegs = Frame(frameParamTop, borderwidth=1,relief=GROOVE, padx = 2, pady = 2)
-for i in range(10):   #  0 to 9
+for i in range(NUM_REGS):   # 
     arrFrameCh.append(Frame(frameRegs, borderwidth=1, padx = 2, pady = 1))
     Label (arrFrameCh[i], text = ('pt' + str(i))).pack(side = LEFT, padx = 2, pady = 1)
     Entry (arrFrameCh[i], width = 8, textvariable = listX[i]).pack(side=LEFT, padx = 2, pady = 1)
