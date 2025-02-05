@@ -1,3 +1,5 @@
-Screen capture of RHEED GUI to download crop box co-ordinates
+Screen capture of RHEED GUI to download crop box co-ordinates.
+Five crop boxes have been entered. If a sixth is added then the first one is removed.
 
-![GUI_demo_RHEED-1 0](https://github.com/user-attachments/assets/7f07465b-7fb7-494b-9e53-70a9bd0601d7)
+![image](https://github.com/user-attachments/assets/cbef3918-17b0-4439-b86b-1ef68758db38)
+
