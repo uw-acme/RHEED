@@ -2,7 +2,12 @@
 --  File         : rhd_registers_misc.vhd
 ----------------------------------------------------------------------------
 -- Description  : Serial interface to Miscellaneous signals interface. 
---                Contains version register and LED control register 
+--                Contains version register and LED control register.
+--                Contains 5 32-bit registers for parameter values.
+-- The parameter registers are intended for holding two, 16-bit pixel locations
+-- for five crop windows. Each register holds the upper left x co-ordinate and y-coord of an image window.
+-- 31:16 x-coord  
+-- 15:0  y-coord     
 ----------------------------------------------------------------------------
 library ieee;
 use     ieee.std_logic_1164.all;
@@ -13,7 +18,7 @@ use     work.rhd_version_pkg.all;
 
 entity rhd_registers_misc is
 generic (
-    G_NUM_REGS32    : integer := 10
+    G_NUM_REGS32    : integer := 5
 );
 port (
     clk             : in  std_logic;
@@ -42,10 +47,10 @@ signal reg_leds         : std_logic_vector( 7 downto 0);
 signal pulse            : std_logic_vector( 1 downto 0); 
 signal pulse_stretched  : std_logic_vector( 1 downto 0);
 signal tick_msec        : std_logic;                        -- Single cycle high every 1 msec. Used by serial interface
-signal flash            :  std_logic;                       -- For blinking an LED 
+signal flash            : std_logic;                        -- For blinking an LED 
 
-type t_arr_regs is array (0 to G_NUM_REGS32-1) of std_logic_vector(31 downto 0);
-signal arr_regs         : t_arr_regs;
+type t_arr_regs_pix is array (0 to G_NUM_REGS32-1) of std_logic_vector(31 downto 0);
+signal arr_regs_pix     : t_arr_regs_pix;
 
 signal cpu_wr           : std_logic;
 signal cpu_sel          : std_logic;

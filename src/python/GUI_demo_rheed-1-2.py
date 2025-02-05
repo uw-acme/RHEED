@@ -1,17 +1,15 @@
 #---------------------------------------------------------------
 # GUI program for RHEED FPGA 
 #---------------------------------------------------------------
-# Initial RHEED FPGA has 5 (NUM_REGS) 32-bit r/w parameter registers, 
+# Initial RHEED FPGA has 10 (NUM_REGS) 32-bit r/w parameter registers, 
 # a read-only version number register and a r/w LED control reg.
 #
-# Assumes that each 32-bit register contains a 5 pairs of 16-bit X,Y
-# co-ordinates for the upper left of a block of pixels
+# Assuming that each 32-bit register contains a 5 pairs of 16-bit X,Y
+# co-ordinates for either the upper left of a block of pixels
 # bits 31:16  x-coord
 # bits 15:0   y-coord
 #---------------------------------------------------------------
-# 
-# Reads a .png  or .h5 file, scales it to fit in a canvas widget.
-# .h5 is converted to png.
+# Reads a .png file, scales it to fit in a canvas widget.
 # User clicks on center of gaussian blobs. 
 # A box is drawn on the image.
 # Co-ordinates of upper left of the box are put into a FIFO list.
@@ -32,10 +30,9 @@ import  os.path
 #---------------------------------------------------------------
 # 1.1  : Add pny image import with boxes
 # 1.2  : h5 and png image import. Arg parsing
-# 1.3  : Keep track of boxes. Delete old ones. Keep crosses
 #---------------------------------------------------------------
-strScriptVersion = "GUI_demo_RHEED 1.3" 
-fileNameH5       = 'not set'
+strScriptVersion = "GUI_demo_RHEED 1.2" 
+fileNameh5       = 'not set'
 fileNamePng      = 'not set'
 #---------------------------------------------------------------
 # Configuration
@@ -43,23 +40,22 @@ NUM_REGS     = 5
 
 # FPGA register addresses
 ADDR_REG_PARAM0     = 0x0000
-ADDR_REG_PARAM4     = 0x0004
+ADDR_REG_PARAM5     = 0x0004
 ADDR_REG_VERSION    = 0x0008
 ADDR_REG_LED        = 0x0009
 dataGpo             = 0x55555555
 
 # Size of canvas to display image
-nCanvasSizeX        = 700  # 
-nCanvasSizeY        = 500  # 
+nCanvasSizeX    = 700  # 
+nCanvasSizeY    = 500  # 
 
-nCropBoxPixX        = 48   # Box size in image pixels
-nCropBoxPixY        = 48   # Box size in image pixels
-nCropBoxDrawX       = 0    # Box size in canvas 
-nCropBoxDrawY       = 0    # Box size in canvas 
+nCropBoxPixX    = 48   # Box size in image pixels
+nCropBoxPixY    = 48   # Box size in image pixels
+nCropBoxDrawX   = 0    # Box size in canvas 
+nCropBoxDrawY   = 0    # Box size in canvas 
 
-# Scale factors to use to convert between image pixels and canvas co-ordinates
-xfactor             = 0.0
-yfactor             = 0.0
+xfactor = 0.0
+yfactor = 0.0
 
 
 #---------------------------------------------------------------
@@ -67,6 +63,7 @@ yfactor             = 0.0
 #---------------------------------------------------------------
 root = Tk()
 root.title(strScriptVersion)
+#root.geometry("300x350")    # Set the size of the app 
 root.resizable(1, 1)        # Don't allow resizing in the x or y direction
 
 strMsg              = StringVar()
@@ -94,13 +91,13 @@ print ("Image filename base  = ", arg_fileNameBase)
 print ("Image file type      = ", arg_fileType)
 
 if (arg_fileType == 'none'):
-    fileNameH5 = arg_fileNameBase + '.h5'
+    fileNameh5 = arg_fileNameBase + '.h5'
 elif (arg_fileType == 'h5'):
-    fileNameH5 = arg_fileNameBase + '.h5'
+    fileNameh5 = arg_fileNameBase + '.h5'
 
 fileNamePng = arg_fileNameBase + '.png'
 
-print ("Image filename H5   = ", fileNameH5)
+print ("Image filename H5   = ", fileNameh5)
 print ("Image filename PNG  = ", fileNamePng)
 
 #---------------------------------------------------------------
@@ -115,15 +112,13 @@ for i in range(NUM_REGS):
     listY[i].set(0)
 
 nListPtrEnd = 0 # point to next available list entry.    
-# Array to store canvas box objects
-arrCropBox = [[0] for i in range(NUM_REGS)] 
 
 #---------------------------------------------------------------
 # Open the .h5 file, convert to a .png
 #---------------------------------------------------------------
 if (arg_fileType == 'none') or (arg_fileType == 'h5'):
 
-        with h5py.File(fileNameH5, "r") as f:
+        with h5py.File(fileNameh5, "r") as f:
 
             # Print all root level object names (aka keys) 
             # these can be group or dataset names 
@@ -315,9 +310,9 @@ def OnCanvasClick(event):
     print ('box x1,y1' , box_x1, box_y1)
     print ('ptr = '    , nListPtrEnd)
 
+    box = canvas1.create_line((box_x0, box_y0), (box_x1, box_y0), (box_x1, box_y1), (box_x0, box_y1), (box_x0, box_y0), fill= 'red', width = 2)
     cross = canvas1.create_line((event.x-5, event.y  ), (event.x+5, event.y  ), fill= 'green', width = 2)
     cross = canvas1.create_line((event.x  , event.y-5), (event.x  , event.y+5), fill= 'green', width = 2)
-    box = canvas1.create_line((box_x0, box_y0), (box_x1, box_y0), (box_x1, box_y1), (box_x0, box_y1), (box_x0, box_y0), fill= 'red', width = 2)
 
     pixel_box_x0 = box_x0 / scale_factor
     pixel_box_y0 = box_y0 / scale_factor
@@ -326,18 +321,14 @@ def OnCanvasClick(event):
     if (nListPtrEnd < NUM_REGS) :
         listX[nListPtrEnd].set(math.floor(pixel_box_x0))
         listY[nListPtrEnd].set(math.floor(pixel_box_y0)) 
-        arrCropBox[nListPtrEnd] = box
         nListPtrEnd+= 1
 
     # Additional box co-ordinates push older ones off the list
     else : 
-        canvas1.delete(arrCropBox[0])
         for nEntry in range(1, NUM_REGS) :
             listX[nEntry-1].set(listX[nEntry].get()) 
             listY[nEntry-1].set(listY[nEntry].get()) 
-            arrCropBox[nEntry-1] = arrCropBox[nEntry]
 
-        arrCropBox[NUM_REGS-1] = box
         listX[NUM_REGS-1].set(math.floor(pixel_box_x0))
         listY[NUM_REGS-1].set(math.floor(pixel_box_y0)) 
         

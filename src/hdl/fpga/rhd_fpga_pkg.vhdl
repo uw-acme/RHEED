@@ -9,8 +9,7 @@ use     ieee.std_logic_1164.all;
 use     ieee.numeric_std.all;
 
 --------------------------------------------------------------------------------
--- External clock is 50 MHz and a PLL is used to generate 50 and 350 MHz
--- internally. 
+-- External clock is 50 MHz
 -------------------------------------------------------------------------------
 package rhd_fpga_pkg is
 
@@ -24,7 +23,7 @@ constant C_CLK_PERIOD           : time      := integer(1.0E+6/(C_CLK_MHZ)) * 1 p
 -- Define the number of parameter registers that are loaded through the serial
 -- interface.
 --------------------------------------------------------------------------------
-constant C_NUM_REGS32       : integer := 10;
+constant C_NUM_REGS32       : integer := 5;
 
 --------------------------------------------------------------------------------
 -- Add other FPGA design constants or datatypes here
@@ -32,11 +31,8 @@ constant C_NUM_REGS32       : integer := 10;
 constant ADR_REG_PARAM0     : integer :=  0;                -- First parameter register
 constant ADR_REG_PARAM_LAST : integer :=  C_NUM_REGS32 - 1; -- Last parameter register
 
-constant ADR_REG_VERSION    : integer := 14;     -- Read-only register containing HDL code version number
-constant ADR_REG_LEDS       : integer := 15;     -- '1' sets LED on
-
-
-
+constant ADR_REG_VERSION    : integer := 8;                 -- Read-only register containing HDL code version number
+constant ADR_REG_LEDS       : integer := 9;                 -- '1' sets LED on
 
 end package;
 
