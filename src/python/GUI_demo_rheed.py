@@ -75,8 +75,7 @@ strMsg1             = StringVar()
 strAddrRegVersion   = StringVar()
 strAddrRegVersion.set(str(hex(ADDR_REG_VERSION)))
 strVersion          = StringVar()
-print (strAddrRegVersion.get())
-strVersion.set("- -") 
+strVersion.set("00000001") 
 
 #---------------------------------------------------------------
 # Create a parser object and parse the command line options 

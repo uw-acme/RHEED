@@ -15,10 +15,11 @@ port (
     p_reset_n               : in    std_logic;          -- Reset
 
     -- Input and output data  
-    p_din                   : in    std_logic_vector( 7 downto 0);
-    p_din_dv                : in    std_logic;
-    p_dout                  : out   std_logic_vector( 7 downto 0);
-    p_dout_dv               : out   std_logic;
+    p_din_tdata             : in    std_logic_vector( 7 downto 0);
+    p_din_tvalid            : in    std_logic;
+
+    p_dout_tdata            : out   std_logic_vector( 7 downto 0);
+    p_dout_tvalid           : out   std_logic;
 
     -- Indicator LEDs
     p_leds                  : out   std_logic_vector( 7 downto 0);      -- '1' = Lit
@@ -48,6 +49,7 @@ signal clk                  : std_logic;
 signal pll_lock             : std_logic;
 
 signal regs_parameters      : std_logic_vector((32*C_NUM_REGS32)-1 downto 0);
+signal regs_parameters_dv   : std_logic;
 
 signal cpuint_rxd           : std_logic;    -- UART Receive data
 signal cpuint_txd           : std_logic;    -- UART Transmit data 
@@ -82,13 +84,17 @@ begin
     port map(
         clk             => clk                    , -- in  std_logic;
         reset           => reset                  , -- in  std_logic;
+
         parameters      => regs_parameters        , -- in  std_logic_vector((32*C_NUM_REGS32)-1 downto 0);
+        parameters_dv   => regs_parameters_dv     , -- in  std_logic;
         debug           => hls_debug              , -- out std_logic_vector( 3 downto 0);
 
-        din             => p_din                  , -- in  std_logic_vector( 7 downto 0);
-        din_dv          => p_din_dv               , -- in  std_logic;
-        dout            => p_dout                 , -- out std_logic_vector( 7 downto 0);
-        dout_dv         => p_dout_dv                -- out std_logic;
+        -- AXI-stream image input
+        din_tdata       => p_din_tdata            , -- in  std_logic_vector( 7 downto 0);
+        din_tvalid      => p_din_tvalid           , -- in  std_logic;
+
+        dout_tdata      => p_dout_tdata           , -- out std_logic_vector( 7 downto 0);
+        dout_tvalid     => p_dout_tvalid            -- out std_logic;
     );
 
 
@@ -111,7 +117,8 @@ begin
 
         leds            => p_leds           , -- out std_logic_vector( 7 downto 0);    -- CPU controlled LED drive
 
-        parameters      => regs_parameters    -- out std_logic_vector(((32*C_NUM_REGS32) - 1) downto 0)
+        parameters      => regs_parameters  , -- out std_logic_vector(((32*C_NUM_REGS32) - 1) downto 0)
+        parameters_dv   => regs_parameters_dv -- out std_logic;
     );
 
 

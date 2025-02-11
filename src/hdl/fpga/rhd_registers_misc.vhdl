@@ -32,7 +32,8 @@ port (
 
     debug           : out std_logic_vector( 3 downto 0);
 
-    parameters      : out std_logic_vector(((32*G_NUM_REGS32) - 1) downto 0)     -- Input to HLS4ML logic
+    parameters      : out std_logic_vector(((32*G_NUM_REGS32) - 1) downto 0);   -- Input to HLS4ML logic
+    parameters_dv   : out std_logic                                             -- Input to HLS4ML logic. Set when parameters are valid
 );
 end rhd_registers_misc;
 
@@ -49,8 +50,9 @@ signal pulse_stretched  : std_logic_vector( 1 downto 0);
 signal tick_msec        : std_logic;                        -- Single cycle high every 1 msec. Used by serial interface
 signal flash            : std_logic;                        -- For blinking an LED 
 
-type t_arr_regs_pix is array (0 to G_NUM_REGS32-1) of std_logic_vector(31 downto 0);
-signal arr_regs_pix     : t_arr_regs_pix;
+type t_arr_regs is array (0 to G_NUM_REGS32-1) of std_logic_vector(31 downto 0);
+signal arr_regs         : t_arr_regs;
+signal arr_regs_dv      : std_logic;    -- Data valid flag for arr_regs. Cleared when writing regs. Set when all are written.
 
 signal cpu_wr           : std_logic;
 signal cpu_sel          : std_logic;
@@ -144,6 +146,7 @@ begin
 
                 for I in 0 to G_NUM_REGS32-1 loop
                     arr_regs(I)     <= (others=>'0');
+                    arr_regs_dv     <= '0';
                 end loop;
                 
             -- Write registers
@@ -153,6 +156,14 @@ begin
                     reg_leds            <= cpu_wdata( 7 downto 0);
                 elsif (v_addr < G_NUM_REGS32) then
                     arr_regs(v_addr)     <= cpu_wdata;
+
+                    -- Set 'data valid' on last write. Clear on writes to other parameter regs
+                    if (v_addr = G_NUM_REGS32-1) then
+                        arr_regs_dv     <= '1';
+                    else    
+                        arr_regs_dv     <= '0';
+                    end if;
+
                 end if;
     
             -- Read registers
@@ -182,7 +193,7 @@ begin
     
     
     ---------------------------------------------------------------------------------
-    -- Drive registers onto parameter port
+    -- Drive registers and data valid flag onto parameter port
     ---------------------------------------------------------------------------------
     pr_parameters : process (arr_regs)
     begin
@@ -191,6 +202,7 @@ begin
                 end loop;
     end process;
     
+    assign parameters_dv    <= arr_regs_dv;
     
 end;
 
