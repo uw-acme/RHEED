@@ -17,6 +17,8 @@ port (
     -- Input and output data  
     p_din                   : in    std_logic_vector( 7 downto 0);
     p_din_dv                : in    std_logic;
+	p_din_tready      		: out 	std_logic;
+	
     p_dout                  : out   std_logic_vector( 7 downto 0);
     p_dout_dv               : out   std_logic;
 
@@ -47,7 +49,12 @@ signal reset                : std_logic;
 signal clk                  : std_logic;
 signal pll_lock             : std_logic;
 
-signal regs_parameters      : std_logic_vector((32*C_NUM_REGS32)-1 downto 0);
+signal reg_parameters       : std_logic_vector((32*C_NUM_CROP_BOX)-1 downto 0);
+signal reg_parameters_dv    : std_logic;
+		
+-- Set of results from HLS for one crop box
+signal hls_results          : std_logic_vector((C_BITS_PER_CROP_RESULT - 1) downto 0);  -- Output from HLS4ML logic
+signal hls_results_dv       : std_logic;         										-- Output from HLS4ML logic
 
 signal cpuint_rxd           : std_logic;    -- UART Receive data
 signal cpuint_txd           : std_logic;    -- UART Transmit data 
@@ -73,20 +80,31 @@ begin
     --);
     reset   <= not(p_reset_n);
     clk     <= p_clock_50;
-
+	
+	cpuint_txd	<= '1';
+	
 
     --------------------------------------------------------------------
-    -- HLS4ML output block
+    -- HLS4ML output block		
     --------------------------------------------------------------------
     u_hls4ml : entity work.rhd_hls4ml
     port map(
         clk             => clk                    , -- in  std_logic;
         reset           => reset                  , -- in  std_logic;
-        parameters      => regs_parameters        , -- in  std_logic_vector((32*C_NUM_REGS32)-1 downto 0);
+        parameters      => reg_parameters         , -- in  std_logic_vector((32*C_NUM_CROP_BOX)-1 downto 0);
+		parameters_dv   => reg_parameters_dv      , -- in  std_logic;
+		
+		-- Set of results from one crop box
+    	results         => hls_results            , -- out std_logic_vector((C_BITS_PER_CROP_RESULT - 1) downto 0);  -- Output from HLS4ML logic
+    	results_dv      => hls_results_dv         , -- out std_logic;         										-- Output from HLS4ML logic
+		
         debug           => hls_debug              , -- out std_logic_vector( 3 downto 0);
 
+		-- Pixel data		
         din             => p_din                  , -- in  std_logic_vector( 7 downto 0);
         din_dv          => p_din_dv               , -- in  std_logic;
+		din_tready      => p_din_tready           , -- out std_logic;
+
         dout            => p_dout                 , -- out std_logic_vector( 7 downto 0);
         dout_dv         => p_dout_dv                -- out std_logic;
     );
@@ -96,9 +114,6 @@ begin
     -- Serial interface for loading parameters
     ---------------------------------------------------------------------------------
     u_rhd_regs : entity work.rhd_registers_misc
-    generic map(
-        G_NUM_REGS32    => C_NUM_REGS32       -- integer := 5
-    )
     port map(
         clk             => clk              , -- in  std_logic;
         reset           => reset            , -- in  std_logic;
@@ -111,7 +126,11 @@ begin
 
         leds            => p_leds           , -- out std_logic_vector( 7 downto 0);    -- CPU controlled LED drive
 
-        parameters      => regs_parameters    -- out std_logic_vector(((32*C_NUM_REGS32) - 1) downto 0)
+    	results         => hls_results	    , -- in  std_logic_vector((C_BITS_PER_CROP_RESULT - 1) downto 0);  -- Output from HLS4ML logic
+    	results_dv      => hls_results_dv	, -- in  std_logic_vector((C_NUM_CROP_BOX - 1) downto 0);         	-- Output from HLS4ML logic
+
+		parameters      => reg_parameters	, -- out std_logic_vector(((32*C_NUM_CROP_BOX) - 1) downto 0);    -- Input to HLS4ML logic
+		parameters_dv   => reg_parameters_dv  -- out std_logic                                                 -- Input to HLS4ML logic
     );
 
 
