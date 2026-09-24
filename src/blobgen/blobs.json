@@ -1,0 +1,85 @@
+{
+  "app": "focus-target",
+  "version": 5,
+  "saved": "2026-08-24T00:23:42.995Z",
+  "canvas": {
+    "L": 320,
+    "zoom": 3
+  },
+  "global": {
+    "ped": 0,
+    "clamp": true,
+    "markers": false,
+    "gridover": false,
+    "outline": true,
+    "dither": true,
+    "hexfmt": true
+  },
+  "grid": {
+    "pat": "cross",
+    "pitch": 8,
+    "spokes": 48,
+    "fg": 255,
+    "bg": 0,
+    "crosshair": false,
+    "invert": false,
+    "native": false
+  },
+  "blobs": [
+    {
+      "on": true,
+      "sx": 3,
+      "sy": 3,
+      "ang": 0,
+      "peak": 255,
+      "x": 32,
+      "y": 160,
+      "xn": 0.1,
+      "yn": 0.5
+    },
+    {
+      "on": true,
+      "sx": 5.8,
+      "sy": 3,
+      "ang": 0,
+      "peak": 255,
+      "x": 96,
+      "y": 160,
+      "xn": 0.3,
+      "yn": 0.5
+    },
+    {
+      "on": true,
+      "sx": 3,
+      "sy": 4.9,
+      "ang": 0,
+      "peak": 255,
+      "x": 160,
+      "y": 160,
+      "xn": 0.5,
+      "yn": 0.5
+    },
+    {
+      "on": true,
+      "sx": 3,
+      "sy": 3,
+      "ang": 0,
+      "peak": 255,
+      "x": 224,
+      "y": 160,
+      "xn": 0.7,
+      "yn": 0.5
+    },
+    {
+      "on": true,
+      "sx": 3,
+      "sy": 3,
+      "ang": 0,
+      "peak": 255,
+      "x": 288,
+      "y": 160,
+      "xn": 0.9,
+      "yn": 0.5
+    }
+  ]
+}

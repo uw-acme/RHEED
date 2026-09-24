@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Focus Target</title>
+<style>
+  :root{
+    --ink:#e8ece9;
+    --dim:#7d8a83;
+    --line:#1e2622;
+    --panel:rgba(8,11,10,0.92);
+    --accent:#4de0a0;
+    --off:#3a4640;
+    --mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;}
+  body{font-family:var(--mono); color:var(--ink); touch-action:none; user-select:none;}
+
+  #stage{position:fixed;inset:0;}
+  canvas{position:absolute;top:0;left:0;width:100%;height:100%;
+         image-rendering:pixelated; image-rendering:crisp-edges;}
+
+  #tab{position:fixed;right:0;top:50%;transform:translateY(-50%);
+       z-index:30;width:26px;height:74px;border:none;
+       background:var(--panel);color:var(--dim);
+       border-radius:6px 0 0 6px;font-family:var(--mono);font-size:11px;
+       letter-spacing:.14em;writing-mode:vertical-rl;padding:0;
+       border-left:1px solid var(--line);}
+  #tab:active{color:var(--accent);}
+  #tab.mini{height:38px;width:20px;opacity:.30;font-size:9px;letter-spacing:.05em;}
+  body.nochrome #tab{display:none;}
+
+  #panel{position:fixed;z-index:20;left:0;right:0;bottom:0;
+         max-height:80vh;overflow-y:auto;overscroll-behavior:contain;
+         background:var(--panel);backdrop-filter:blur(14px);
+         border-top:1px solid var(--line);
+         padding:10px 12px calc(12px + env(safe-area-inset-bottom));
+         transition:transform .22s ease;}
+  #panel.hidden{transform:translateY(102%);}
+
+  .modes{display:flex;gap:6px;margin-bottom:9px;}
+  .modes button{flex:1;padding:8px 0;background:transparent;color:var(--dim);
+    border:1px solid var(--line);border-radius:4px;font-family:var(--mono);
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;}
+  .modes button.on{color:#04120c;background:var(--accent);border-color:var(--accent);}
+
+  .row{display:flex;align-items:center;gap:8px;margin:8px 0;}
+  .row label{flex:0 0 88px;font-size:11px;color:var(--dim);letter-spacing:.05em;}
+  .row input[type=range]{flex:1;min-width:0;height:24px;background:transparent;-webkit-appearance:none;}
+  .row input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line);}
+  .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;
+    margin-top:-9px;border-radius:50%;background:var(--ink);}
+  .row input[type=range]::-moz-range-track{height:2px;background:var(--line);}
+  .row input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--ink);}
+  .row input[type=range]:disabled::-webkit-slider-thumb{background:var(--off);}
+  .val{flex:0 0 56px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums;}
+
+  .tight .row{margin:2px 0;gap:7px;}
+  .tight .row label{flex:0 0 34px;font-size:10px;letter-spacing:0;}
+  .tight .row input[type=range]{height:20px;}
+  .tight .row input[type=range]::-webkit-slider-thumb{width:16px;height:16px;margin-top:-7px;}
+  .tight .row input[type=range]::-moz-range-thumb{width:16px;height:16px;}
+  .tight .val{flex:0 0 44px;font-size:10.5px;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 9px;}
+  .chips button{padding:6px 9px;background:transparent;color:var(--dim);
+    border:1px solid var(--line);border-radius:4px;font-family:var(--mono);font-size:10.5px;}
+  .chips button.on{color:var(--accent);border-color:var(--accent);}
+
+  #sel{display:flex;gap:5px;margin:0 0 8px;}
+  #sel button{flex:1;padding:6px 0;background:transparent;border:1px solid var(--line);
+    border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--dim);
+    display:flex;flex-direction:column;align-items:center;gap:4px;}
+  #sel button.sel{border-color:var(--accent);color:var(--ink);}
+  #sel .dot{width:6px;height:6px;border-radius:50%;background:var(--off);}
+  #sel button.live .dot{background:var(--accent);}
+
+  .foot{display:flex;gap:5px;margin-top:8px;}
+  .foot button{flex:1;padding:8px 0;background:transparent;color:var(--dim);
+    border:1px solid var(--line);border-radius:4px;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.04em;}
+  .foot button.on{color:var(--accent);border-color:var(--accent);}
+
+  .sect{font-size:9.5px;color:var(--dim);letter-spacing:.14em;margin:11px 0 3px;
+    border-top:1px solid var(--line);padding-top:7px;}
+  #stathead{display:flex;justify-content:space-between;align-items:center;
+    margin-top:9px;border-top:1px solid var(--line);padding-top:7px;
+    font-size:10px;color:var(--dim);letter-spacing:.06em;}
+  #stat{font-size:10px;line-height:1.55;color:var(--dim);white-space:pre-wrap;margin-top:5px;}
+  #stat.collapsed{display:none;}
+  #hint{font-size:10px;line-height:1.5;color:var(--dim);margin:7px 0 0;}
+  .grp{display:none;} .grp.on{display:block;}
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="cv"></canvas></div>
+<button id="tab" aria-label="Show or hide controls">CONTROLS</button>
+
+<div id="panel">
+  <div class="modes">
+    <button data-mode="grid" class="on">Grid</button>
+    <button data-mode="blob">Blobs</button>
+  </div>
+
+  <!-- ================= GRID ================= -->
+  <div class="grp on" id="g-grid">
+    <div class="chips" id="patterns">
+      <button data-pat="cross" class="on">Crosshatch</button>
+      <button data-pat="dots">Dots</button>
+      <button data-pat="checker">Checker</button>
+      <button data-pat="star">Siemens star</button>
+      <button data-pat="ramp">Resolution ramp</button>
+    </div>
+    <div class="row" id="r-pitch">
+      <label>Pitch</label>
+      <input type="range" id="pitch" min="2" max="64" step="1" value="8">
+      <span class="val" id="v-pitch">8</span>
+    </div>
+    <div class="row" id="r-spokes">
+      <label>Spokes</label>
+      <input type="range" id="spokes" min="8" max="128" step="2" value="48">
+      <span class="val" id="v-spokes">48</span>
+    </div>
+    <div class="row">
+      <label>Line level</label>
+      <input type="range" id="fg" min="0" max="255" step="1" value="255">
+      <span class="val" id="v-fg">255</span>
+    </div>
+    <div class="row">
+      <label>Background</label>
+      <input type="range" id="bg" min="0" max="255" step="1" value="0">
+      <span class="val" id="v-bg">0</span>
+    </div>
+    <div class="foot">
+      <button id="crosshair">Centre mark</button>
+      <button id="invert">Invert</button>
+      <button id="native">Native px</button>
+    </div>
+  </div>
+
+  <!-- ================= BLOBS ================= -->
+  <div class="grp" id="g-blob">
+    <div id="sel"></div>
+    <div class="tight">
+      <div class="row">
+        <label>&sigma;x</label>
+        <input type="range" id="sx" min="0.3" max="80" step="0.1" value="6">
+        <span class="val" id="v-sx">6.0</span>
+      </div>
+      <div class="row">
+        <label>&sigma;y</label>
+        <input type="range" id="sy" min="0.3" max="80" step="0.1" value="6">
+        <span class="val" id="v-sy">6.0</span>
+      </div>
+      <div class="row">
+        <label>rot</label>
+        <input type="range" id="ang" min="0" max="180" step="0.5" value="0">
+        <span class="val" id="v-ang">0&deg;</span>
+      </div>
+      <div class="row">
+        <label>peak</label>
+        <input type="range" id="peak" min="0" max="255" step="1" value="255">
+        <span class="val" id="v-peak">255</span>
+      </div>
+      <div class="row">
+        <label>ped</label>
+        <input type="range" id="ped" min="0" max="255" step="1" value="0">
+        <span class="val" id="v-ped">0</span>
+      </div>
+    </div>
+    <div class="foot">
+      <button id="onoff">Off</button>
+      <button id="solo">Solo</button>
+      <button id="copyall">Copy all</button>
+      <button id="row">Row</button>
+      <button id="scatter">Scatter</button>
+    </div>
+    <div class="foot">
+      <button id="markers">Markers</button>
+      <button id="gridover">Grid ovl</button>
+      <button id="clamp" class="on">Clamp</button>
+    </div>
+    <p id="hint">Tap a blob to select, drag to move. Coordinates are canvas pixels.</p>
+  </div>
+
+  <!-- ================= CANVAS ================= -->
+  <div class="sect">CANVAS</div>
+  <div class="chips" id="sizes">
+    <button data-l="40">40</button>
+    <button data-l="48">48</button>
+    <button data-l="64">64</button>
+    <button data-l="128">128</button>
+    <button data-l="256">256</button>
+    <button data-l="320" class="on">320</button>
+  </div>
+  <div class="row">
+    <label>Zoom</label>
+    <input type="range" id="zoom" min="0" max="16" step="1" value="0">
+    <span class="val" id="v-zoom">fit</span>
+  </div>
+  <div class="foot">
+    <button id="outline" class="on">Outline</button>
+    <button id="dither" class="on">Dither</button>
+    <button id="hexfmt">Hex out</button>
+    <button id="autosave">Auto-save</button>
+  </div>
+  <div class="foot">
+    <button id="savejson">Save json</button>
+    <button id="savepix">Save pixels</button>
+    <button id="load">Load json</button>
+  </div>
+  <input type="file" id="fileinput" accept=".json,application/json" style="display:none">
+
+  <div id="stathead"><span>STATUS</span><span id="stattoggle">show</span></div>
+  <div id="stat" class="collapsed"></div>
+
+  <div class="foot">
+    <button id="full">Full screen</button>
+    <button id="awake">Keep awake</button>
+    <button id="reset">Defaults</button>
+    <button id="hidechrome">Hide ctrls</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const off = document.createElement('canvas');     // logical canvas, L x L
+const octx= off.getContext('2d');
+const N = 5;
+const K = 4.0;                    // render each blob out to 4 sigma
+const STORE_KEY = 'focus-target-v5';
+const SIDECAR = 'blobs.json';
+const PIXFILE = 'blobs_image.txt';
+
+const S = {
+  mode:'grid',
+  L:320,                          // logical canvas is L x L pixels, always
+  zoom:0,                         // 0 = fit (largest integer scale that fits)
+  scale:1, ox:0, oy:0,            // device px per logical px, and top-left offset
+  pat:'cross', pitch:8, spokes:48, fg:255, bg:0,
+  crosshair:false, invert:false, native:false,
+  ped:0, gridover:false, clamp:true, markers:false, outline:true, autosave:true,
+  dither:true, hexfmt:false,
+  sel:0, blobs:[], source:'defaults',
+  W:0, H:0, dpr:1
+};
+
+function defaultBlobs(L){
+  const a=[];
+  for(let i=0;i<N;i++)
+    a.push({on:true, sx:6, sy:6, ang:0, peak:255, x:L*(i+0.5)/N, y:L/2});
+  return a;
+}
+S.blobs = defaultBlobs(S.L);
+
+/* ---------- geometry ----------
+   The logical canvas is L x L. It is drawn with an INTEGER scale factor and
+   nearest-neighbour sampling, so every logical pixel is an exact square block
+   of device pixels: no resampling, no interpolated edges. */
+function usable(){
+  const r={l:0,t:0,r:S.W,b:S.H};
+  const panel=document.getElementById('panel');
+  if(!document.body.classList.contains('nochrome')){
+    if(!panel.classList.contains('hidden'))
+      r.b = S.H - panel.getBoundingClientRect().height*S.dpr;
+    r.r = S.W - 30*S.dpr;
+  }
+  if(r.b-r.t < 80*S.dpr) r.b = r.t + 80*S.dpr;
+  return r;
+}
+function fitScale(){
+  const r=usable();
+  return Math.max(1, Math.floor(Math.min(r.r-r.l, r.b-r.t)/S.L));
+}
+function layout(){
+  const r=usable();
+  S.scale = S.zoom>0 ? S.zoom : fitScale();
+  const side=S.L*S.scale;
+  S.ox = Math.round(r.l + (r.r-r.l-side)/2);
+  S.oy = Math.round(r.t + (r.b-r.t-side)/2);
+}
+
+function resize(){
+  const r=cv.getBoundingClientRect();
+  S.dpr=window.devicePixelRatio||1;
+  S.W=Math.round(r.width*S.dpr);
+  S.H=Math.round(r.height*S.dpr);
+  cv.width=S.W; cv.height=S.H;
+  off.width=S.L; off.height=S.L;
+  layout(); draw();
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',()=>setTimeout(resize,300));
+
+function rowLayout(){
+  S.blobs.forEach((b,i)=>{ b.x=S.L*(i+0.5)/N; b.y=S.L/2; });
+}
+function scatter(){
+  S.blobs.forEach(b=>{
+    const m=Math.min(K*Math.max(b.sx,b.sy), S.L/2-1);
+    b.x=m+Math.random()*(S.L-2*m);
+    b.y=m+Math.random()*(S.L-2*m);
+  });
+}
+function clampToCanvas(b){
+  b.x=Math.min(Math.max(b.x,0),S.L);
+  b.y=Math.min(Math.max(b.y,0),S.L);
+}
+
+/* ---------- drawing ---------- */
+function lvl(v){ return S.invert?255-v:v; }
+function rgb(v){ v=Math.max(0,Math.min(255,Math.round(v))); return 'rgb('+v+','+v+','+v+')'; }
+
+function draw(){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,S.W,S.H);
+
+  if(S.mode==='grid' && S.native){
+    drawGridNative();               // straight to the panel, 1 device px lines
+  } else {
+    if(S.mode==='grid') drawGridLogical(); else drawBlobs();
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(off, 0,0,S.L,S.L, S.ox,S.oy, S.L*S.scale, S.L*S.scale);
+  }
+  if(S.outline && !(S.mode==='grid'&&S.native)) drawOutline();
+  updateStat();
+}
+
+function drawOutline(){
+  const w=Math.max(1,Math.round(S.dpr)), side=S.L*S.scale;
+  ctx.strokeStyle='#2e3a35'; ctx.lineWidth=w;
+  ctx.strokeRect(S.ox-w/2, S.oy-w/2, side+w, side+w);
+}
+
+/* --- grid rendered INTO the logical canvas (pitch is in canvas pixels) --- */
+function drawGridLogical(){
+  const L=S.L,p=S.pitch,fg=lvl(S.fg),bg=lvl(S.bg);
+  octx.fillStyle=rgb(bg); octx.fillRect(0,0,L,L);
+  octx.fillStyle=rgb(fg);
+  if(S.pat==='cross'){
+    for(let x=0;x<L;x+=p) octx.fillRect(x,0,1,L);
+    for(let y=0;y<L;y+=p) octx.fillRect(0,y,L,1);
+  } else if(S.pat==='dots'){
+    for(let y=0;y<L;y+=p) for(let x=0;x<L;x+=p) octx.fillRect(x,y,1,1);
+  } else if(S.pat==='checker'){
+    for(let y=0;y<L;y+=p) for(let x=0;x<L;x+=p)
+      if(((x/p|0)+(y/p|0))&1) octx.fillRect(x,y,p,p);
+  } else if(S.pat==='star'){
+    const c=L/2,R=L*0.72,n=S.spokes,step=Math.PI/n;
+    for(let i=0;i<n;i++){
+      const a=2*i*step;
+      octx.beginPath(); octx.moveTo(c,c); octx.arc(c,c,R,a,a+step); octx.closePath(); octx.fill();
+    }
+  } else if(S.pat==='ramp'){
+    let y=2;
+    for(let w=1;w<=8;w++){
+      const h=Math.max(6,w*5);
+      if(y+h>L-2) break;
+      let x=3; const bars=6, span=bars*2*w;
+      for(let b=0;b<bars;b++){ octx.fillRect(x,y,w,h); x+=2*w; }
+      const x0=3+span+6;
+      if(x0+h<L-2){ let yy=y; for(let b=0;b<bars&&yy+w<=y+h;b++){ octx.fillRect(x0,yy,h,w); yy+=2*w; } }
+      y+=h+3;
+    }
+  }
+  if(S.crosshair){
+    const c=Math.round(L/2),Ln=Math.round(L*0.08);
+    octx.fillStyle=rgb(fg===255?0:255);
+    octx.fillRect(c-Ln,c-1,2*Ln,3); octx.fillRect(c-1,c-Ln,3,2*Ln);
+    octx.fillStyle=rgb(fg);
+    octx.fillRect(c-Ln,c,2*Ln,1);   octx.fillRect(c,c-Ln,1,2*Ln);
+  }
+}
+
+/* --- grid at the panel's own resolution: the finest focus target the
+       display can produce, ignoring the logical canvas entirely --- */
+function drawGridNative(){
+  const W=S.W,H=S.H,p=S.pitch,fg=lvl(S.fg),bg=lvl(S.bg);
+  ctx.fillStyle=rgb(bg); ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=rgb(fg);
+  if(S.pat==='cross'){
+    for(let x=0;x<W;x+=p) ctx.fillRect(x,0,1,H);
+    for(let y=0;y<H;y+=p) ctx.fillRect(0,y,W,1);
+  } else if(S.pat==='dots'){
+    for(let y=0;y<H;y+=p) for(let x=0;x<W;x+=p) ctx.fillRect(x,y,1,1);
+  } else if(S.pat==='checker'){
+    for(let y=0;y<H;y+=p) for(let x=0;x<W;x+=p)
+      if(((x/p|0)+(y/p|0))&1) ctx.fillRect(x,y,p,p);
+  } else if(S.pat==='star'){
+    const cx=W/2,cy=H/2,R=Math.hypot(W,H)/2,n=S.spokes,step=Math.PI/n;
+    for(let i=0;i<n;i++){
+      const a=2*i*step;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,R,a,a+step); ctx.closePath(); ctx.fill();
+    }
+  } else if(S.pat==='ramp'){
+    let y=4;
+    for(let w=1;w<=10;w++){
+      const h=Math.max(12,w*10);
+      if(y+h>H-4) break;
+      let x=6; const bars=8, span=bars*2*w;
+      for(let b=0;b<bars;b++){ ctx.fillRect(x,y,w,h); x+=2*w; }
+      const x0=6+span+16;
+      if(x0+h<W-4){ let yy=y; for(let b=0;b<bars&&yy+w<=y+h;b++){ ctx.fillRect(x0,yy,h,w); yy+=2*w; } }
+      ctx.font=Math.round(9*S.dpr)+'px ui-monospace, monospace';
+      ctx.fillText(w+'px', W-Math.round(34*S.dpr), y+Math.round(10*S.dpr));
+      y+=h+6;
+    }
+  }
+  if(S.crosshair){
+    const cx=Math.round(W/2),cy=Math.round(H/2),Ln=Math.round(24*S.dpr);
+    ctx.fillStyle=rgb(fg===255?0:255);
+    ctx.fillRect(cx-Ln,cy-1,2*Ln,3); ctx.fillRect(cx-1,cy-Ln,3,2*Ln);
+    ctx.fillStyle=rgb(fg);
+    ctx.fillRect(cx-Ln,cy,2*Ln,1);   ctx.fillRect(cx,cy-Ln,1,2*Ln);
+  }
+}
+
+/* --- blobs, sampled on the logical pixel lattice --- */
+function blobBox(b){
+  const R=Math.ceil(K*Math.max(b.sx,b.sy))+1;
+  return {x0:Math.max(0,Math.round(b.x)-R), x1:Math.min(S.L,Math.round(b.x)+R+1),
+          y0:Math.max(0,Math.round(b.y)-R), y1:Math.min(S.L,Math.round(b.y)+R+1)};
+}
+/* The 8-bit field, L x L, raster order (index = y*L + x). This is the single
+   source of truth: the display and the exported text file both come from it,
+   so the testbench sees exactly the pixel values the panel is showing. */
+function blobField(){
+  const L=S.L, out=new Uint8Array(L*L);
+  out.fill(Math.min(255,Math.max(0,Math.round(S.ped))));
+
+  const live=S.blobs.filter(b=>b.on&&b.peak>S.ped);
+  if(!live.length) return out;
+
+  let X0=L,X1=0,Y0=L,Y1=0;
+  const boxes=live.map(b=>{
+    const q=blobBox(b);
+    X0=Math.min(X0,q.x0); X1=Math.max(X1,q.x1);
+    Y0=Math.min(Y0,q.y0); Y1=Math.max(Y1,q.y1);
+    return q;
+  });
+  const w=X1-X0,h=Y1-Y0;
+  if(w<=0||h<=0) return out;
+
+  const acc=new Float32Array(w*h);               // sum in float, quantise once
+  live.forEach((b,n)=>{
+    const q=boxes[n],th=b.ang*Math.PI/180,c=Math.cos(th),s=Math.sin(th);
+    const ax=1/(2*b.sx*b.sx),ay=1/(2*b.sy*b.sy),A=b.peak-S.ped;
+    for(let y=q.y0;y<q.y1;y++){
+      const dy=y-b.y,rowOff=(y-Y0)*w-X0;
+      for(let x=q.x0;x<q.x1;x++){
+        const dx=x-b.x;
+        const u=dx*c+dy*s, v=-dx*s+dy*c;
+        acc[rowOff+x]+=A*Math.exp(-(u*u*ax+v*v*ay));
+      }
+    }
+  });
+
+  for(let j=0;j<h;j++){
+    for(let i=0;i<w;i++){
+      let g=S.ped+acc[j*w+i];
+      if(S.clamp&&g>255) g=255;
+      else if(g>255) g=g%256;                    // wrap: saturation shows as a fringe
+      if(g<0) g=0;
+      let q2;
+      if(S.dither){
+        const b0=g|0,f=g-b0;
+        const t=(((i&1)^(j&1))?0.25:0.75);        // 2x2 ordered dither on the fraction
+        q2=(f>t)?b0+1:b0;
+      } else {
+        q2=Math.round(g);                         // plain nearest-integer
+      }
+      if(q2>255) q2=255;
+      out[(Y0+j)*L + (X0+i)] = q2;
+    }
+  }
+  return out;
+}
+
+function drawBlobs(){
+  const L=S.L;
+  const field=blobField();
+  const img=octx.createImageData(L,L), d=img.data;
+  for(let k=0,n=L*L;k<n;k++){
+    const v=field[k], m=k*4;
+    d[m]=d[m+1]=d[m+2]=v; d[m+3]=255;
+  }
+  octx.putImageData(img,0,0);
+
+  /* annotations, drawn on top and NOT part of the exported field */
+  if(S.gridover){
+    octx.fillStyle='rgba(96,128,116,0.55)';
+    const p=Math.max(4,Math.round(L/16));
+    for(let x=0;x<L;x+=p) octx.fillRect(x,0,1,L);
+    for(let y=0;y<L;y+=p) octx.fillRect(0,y,L,1);
+  }
+  if(S.markers){
+    octx.lineWidth=1;
+    S.blobs.forEach((b,i)=>{
+      octx.strokeStyle=(i===S.sel)?'#4de0a0':(b.on?'#57706a':'#3a4640');
+      octx.beginPath();
+      octx.arc(b.x+0.5,b.y+0.5,Math.max(3,K*Math.max(b.sx,b.sy)),0,2*Math.PI);
+      octx.stroke();
+    });
+  }
+}
+
+/* ---------- status ---------- */
+const statEl=document.getElementById('stat');
+document.getElementById('stathead').addEventListener('click',()=>{
+  const c=statEl.classList.toggle('collapsed');
+  document.getElementById('stattoggle').textContent=c?'show':'hide';
+  if(!c) updateStat();
+});
+function updateStat(){
+  if(statEl.classList.contains('collapsed')) return;
+  let t='Canvas '+S.L+' \u00d7 '+S.L+' px  \u00b7  '+S.scale+'\u00d7 \u2192 '
+       +(S.L*S.scale)+' device px  \u00b7  screen '+S.W+'\u00d7'+S.H+' @ DPR '+S.dpr.toFixed(2)
+       +'\nsettings: '+S.source;
+  if(S.mode==='grid'){
+    t+='\nPitch '+S.pitch+(S.native?' device px (native)':' canvas px');
+  } else {
+    S.blobs.forEach((b,i)=>{
+      t+='\n'+(i+1)+(b.on?' \u25cf ':' \u25cb ')+'\u03c3 '+b.sx.toFixed(1)+'/'+b.sy.toFixed(1)
+        +'  \u2220'+b.ang.toFixed(0)+'\u00b0  pk '+b.peak
+        +'  @ '+b.x.toFixed(1)+','+b.y.toFixed(1);
+    });
+    t+='\nFWHM = 2.355\u03c3 canvas px. Overlaps add before quantising.';
+  }
+  t+='\nRaw 8-bit code values; the panel applies its own gamma.';
+  statEl.textContent=t;
+}
+
+/* ---------- persistence ---------- */
+function snapshot(){
+  return {
+    app:'focus-target', version:5, saved:new Date().toISOString(),
+    canvas:{L:S.L, zoom:S.zoom},
+    global:{ped:S.ped, clamp:S.clamp, markers:S.markers, gridover:S.gridover,
+            outline:S.outline, dither:S.dither, hexfmt:S.hexfmt},
+    grid:{pat:S.pat, pitch:S.pitch, spokes:S.spokes, fg:S.fg, bg:S.bg,
+          crosshair:S.crosshair, invert:S.invert, native:S.native},
+    blobs:S.blobs.map(b=>({
+      on:b.on, sx:+b.sx.toFixed(3), sy:+b.sy.toFixed(3), ang:+b.ang.toFixed(2),
+      peak:b.peak, x:+b.x.toFixed(3), y:+b.y.toFixed(3),
+      xn:+(b.x/S.L).toFixed(5), yn:+(b.y/S.L).toFixed(5)
+    }))
+  };
+}
+function applySnapshot(o){
+  if(!o||!Array.isArray(o.blobs)) throw new Error('not a focus-target file');
+  const num=(v,d)=>(typeof v==='number'&&isFinite(v))?v:d;
+  const fileL = (o.canvas&&num(o.canvas.L,0)) || 0;
+  if(fileL>=8&&fileL<=4096){ S.L=Math.round(fileL); off.width=off.height=S.L; }
+  if(o.canvas) S.zoom=Math.min(Math.max(Math.round(num(o.canvas.zoom,0)),0),16);
+  o.blobs.slice(0,N).forEach((s,i)=>{
+    const b=S.blobs[i];
+    b.on   = s.on!==false;
+    b.sx   = Math.min(Math.max(num(s.sx,6),0.3),80);
+    b.sy   = Math.min(Math.max(num(s.sy,6),0.3),80);
+    b.ang  = ((num(s.ang,0)%180)+180)%180;
+    b.peak = Math.min(Math.max(Math.round(num(s.peak,255)),0),255);
+    /* absolute canvas pixels when the file used the same L, else the fraction */
+    if(fileL===S.L && typeof s.x==='number'){ b.x=s.x; b.y=num(s.y,S.L/2); }
+    else { b.x=num(s.xn,0.5)*S.L; b.y=num(s.yn,0.5)*S.L; }
+    clampToCanvas(b);
+  });
+  if(o.global){
+    S.ped=num(o.global.ped,0); S.clamp=o.global.clamp!==false;
+    S.markers=!!o.global.markers; S.gridover=!!o.global.gridover;
+    S.outline=o.global.outline!==false;
+    S.dither=o.global.dither!==false; S.hexfmt=!!o.global.hexfmt;
+  }
+  if(o.grid){
+    if(typeof o.grid.pat==='string') S.pat=o.grid.pat;
+    S.pitch=num(o.grid.pitch,8); S.spokes=num(o.grid.spokes,48);
+    S.fg=num(o.grid.fg,255); S.bg=num(o.grid.bg,0);
+    S.crosshair=!!o.grid.crosshair; S.invert=!!o.grid.invert; S.native=!!o.grid.native;
+  }
+  syncAllUI(); layout(); draw();
+}
+function download(text,name,mime){
+  const blob=new Blob([text],{type:mime});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000);
+}
+
+/* One pixel value per line, raster order: line n holds pixel
+   (x = n mod L, y = n div L), so line 1 is (0,0) and there are L*L lines.
+   No header and no trailing blank line, so a VHDL textio loop can read it
+   straight into an integer or a std_logic_vector without skipping anything. */
+function pixelText(){
+  const L=S.L, f=blobField(), parts=new Array(L*L);
+  if(S.hexfmt){
+    for(let k=0;k<f.length;k++) parts[k]=f[k].toString(16).toUpperCase().padStart(2,'0');
+  } else {
+    for(let k=0;k<f.length;k++) parts[k]=f[k];
+  }
+  return parts.join('\n')+'\n';
+}
+
+function saveJson(){
+  download(JSON.stringify(snapshot(),null,2), SIDECAR, 'application/json');
+  flash('savejson','Saved');
+}
+function savePixels(){
+  download(pixelText(), PIXFILE, 'text/plain');
+  flash('savepix', S.L+'\u00b2 lines');
+}
+function flash(id,msg){
+  const b=document.getElementById(id),old=b.textContent;
+  b.textContent=msg; b.classList.add('on');
+  setTimeout(()=>{ b.textContent=old; b.classList.remove('on'); },1200);
+}
+document.getElementById('savejson').addEventListener('click',saveJson);
+document.getElementById('savepix').addEventListener('click',savePixels);
+
+const fileinput=document.getElementById('fileinput');
+document.getElementById('load').addEventListener('click',()=>fileinput.click());
+fileinput.addEventListener('change',()=>{
+  const f=fileinput.files&&fileinput.files[0];
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{ applySnapshot(JSON.parse(rd.result)); S.source=f.name; flash('load','Loaded'); store(); }
+    catch(err){ flash('load','Bad file'); }
+  };
+  rd.readAsText(f); fileinput.value='';
+});
+function store(){
+  if(!S.autosave) return;
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(snapshot())); }catch(err){}
+}
+function restoreLocal(){
+  try{
+    const t=localStorage.getItem(STORE_KEY);
+    if(!t) return false;
+    applySnapshot(JSON.parse(t)); S.source='auto-save'; return true;
+  }catch(err){ return false; }
+}
+async function restoreSidecar(){
+  if(!/^https?:$/.test(location.protocol)) return false;
+  try{
+    const r=await fetch(SIDECAR,{cache:'no-store'});
+    if(!r.ok) return false;
+    applySnapshot(await r.json()); S.source=SIDECAR; return true;
+  }catch(err){ return false; }
+}
+document.getElementById('reset').addEventListener('click',()=>{
+  S.L=320; off.width=off.height=S.L;
+  S.blobs=defaultBlobs(S.L); S.ped=0; S.sel=0; S.zoom=0; S.source='defaults';
+  syncAllUI(); layout(); draw(); store();
+});
+
+/* ---------- canvas size + zoom ---------- */
+document.querySelectorAll('#sizes button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const nl=parseInt(btn.dataset.l,10), k=nl/S.L;
+    S.blobs.forEach(b=>{ b.x*=k; b.y*=k; b.sx=Math.min(b.sx*k,80); b.sy=Math.min(b.sy*k,80); });
+    S.pitch=Math.max(2,Math.min(64,Math.round(S.pitch*k)));
+    S.L=nl; off.width=off.height=S.L;
+    syncAllUI(); layout(); draw(); store();
+  });
+});
+const zoomEl=document.getElementById('zoom');
+zoomEl.addEventListener('input',()=>{
+  S.zoom=parseInt(zoomEl.value,10);
+  document.getElementById('v-zoom').textContent=S.zoom?S.zoom+'\u00d7':'fit';
+  layout(); draw();
+});
+zoomEl.addEventListener('change',store);
+
+/* ---------- blob selector ---------- */
+const selBox=document.getElementById('sel');
+for(let i=0;i<N;i++){
+  const b=document.createElement('button');
+  b.innerHTML='<span>'+(i+1)+'</span><span class="dot"></span>';
+  b.addEventListener('click',()=>{ S.sel=i; syncBlobUI(); draw(); });
+  selBox.appendChild(b);
+}
+const bIds=['sx','sy','ang','peak'];
+const bFmt={sx:v=>v.toFixed(1), sy:v=>v.toFixed(1), ang:v=>v.toFixed(0)+'\u00b0', peak:v=>String(v)};
+bIds.forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',()=>{
+    S.blobs[S.sel][id]=parseFloat(el.value);
+    document.getElementById('v-'+id).textContent=bFmt[id](S.blobs[S.sel][id]);
+    draw();
+  });
+  el.addEventListener('change',store);
+});
+function syncBlobUI(){
+  const b=S.blobs[S.sel];
+  bIds.forEach(id=>{
+    const el=document.getElementById(id);
+    el.value=b[id]; el.disabled=!b.on;
+    document.getElementById('v-'+id).textContent=bFmt[id](b[id]);
+  });
+  const t=document.getElementById('onoff');
+  t.textContent=b.on?'Off':'On'; t.classList.toggle('on',b.on);
+  [...selBox.children].forEach((el,i)=>{
+    el.classList.toggle('sel',i===S.sel);
+    el.classList.toggle('live',S.blobs[i].on);
+  });
+}
+function syncAllUI(){
+  syncBlobUI();
+  const set=(id,v,fmt)=>{ const el=document.getElementById(id);
+    if(el){ el.value=v; const o=document.getElementById('v-'+id); if(o) o.textContent=fmt(v); } };
+  set('ped',S.ped,v=>String(v));
+  set('pitch',S.pitch,v=>String(v)); set('spokes',S.spokes,v=>String(v));
+  set('fg',S.fg,v=>String(v)); set('bg',S.bg,v=>String(v));
+  set('zoom',S.zoom,v=>v?v+'\u00d7':'fit');
+  ['crosshair','invert','native','gridover','markers','clamp','outline','autosave',
+   'dither','hexfmt'].forEach(k=>{
+    const b=document.getElementById(k); if(b) b.classList.toggle('on',!!S[k]);
+  });
+  document.querySelectorAll('#patterns button').forEach(b=>b.classList.toggle('on',b.dataset.pat===S.pat));
+  document.querySelectorAll('#sizes button').forEach(b=>b.classList.toggle('on',+b.dataset.l===S.L));
+  document.getElementById('r-pitch').style.display  = (S.pat==='star')?'none':'flex';
+  document.getElementById('r-spokes').style.display = (S.pat==='star')?'flex':'none';
+}
+
+document.getElementById('onoff').addEventListener('click',()=>{
+  const b=S.blobs[S.sel]; b.on=!b.on; syncBlobUI(); draw(); store();
+});
+document.getElementById('solo').addEventListener('click',()=>{
+  S.blobs.forEach((b,i)=>b.on=(i===S.sel)); syncBlobUI(); draw(); store();
+});
+document.getElementById('copyall').addEventListener('click',()=>{
+  const s=S.blobs[S.sel];
+  S.blobs.forEach(b=>{ b.sx=s.sx; b.sy=s.sy; b.ang=s.ang; b.peak=s.peak; b.on=true; });
+  syncBlobUI(); draw(); store();
+});
+document.getElementById('row').addEventListener('click',()=>{ rowLayout(); draw(); store(); });
+document.getElementById('scatter').addEventListener('click',()=>{ scatter(); draw(); store(); });
+
+/* ---------- generic bindings ---------- */
+function bindRange(id,key,fmt){
+  const el=document.getElementById(id),out=document.getElementById('v-'+id);
+  el.addEventListener('input',()=>{ S[key]=parseFloat(el.value); out.textContent=fmt(S[key]); draw(); });
+  el.addEventListener('change',store);
+  out.textContent=fmt(S[key]);
+}
+bindRange('pitch','pitch',v=>String(v));
+bindRange('spokes','spokes',v=>String(v));
+bindRange('fg','fg',v=>String(v));
+bindRange('bg','bg',v=>String(v));
+bindRange('ped','ped',v=>String(v));
+
+document.querySelectorAll('.modes button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.modes button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); S.mode=b.dataset.mode;
+    document.getElementById('g-grid').classList.toggle('on',S.mode==='grid');
+    document.getElementById('g-blob').classList.toggle('on',S.mode==='blob');
+    layout(); draw();
+  });
+});
+document.querySelectorAll('#patterns button').forEach(b=>{
+  b.addEventListener('click',()=>{ S.pat=b.dataset.pat; syncAllUI(); draw(); store(); });
+});
+function toggle(id,key){
+  const b=document.getElementById(id);
+  b.classList.toggle('on',!!S[key]);
+  b.addEventListener('click',()=>{ S[key]=!S[key]; b.classList.toggle('on',S[key]); draw(); store(); });
+}
+['crosshair','invert','native','gridover','markers','clamp','outline','autosave',
+ 'dither','hexfmt'].forEach(k=>toggle(k,k));
+
+/* ---------- chrome ---------- */
+const panel=document.getElementById('panel');
+const tab=document.getElementById('tab');
+function setPanel(open){
+  panel.classList.toggle('hidden',!open);
+  tab.classList.toggle('mini',!open);
+  tab.textContent=open?'CONTROLS':'SHOW';
+  setTimeout(()=>{ layout(); draw(); },240);   // refit once the slide finishes
+}
+tab.addEventListener('click',()=>setPanel(panel.classList.contains('hidden')));
+document.getElementById('hidechrome').addEventListener('click',()=>{
+  setPanel(false); document.body.classList.add('nochrome');
+});
+function showChrome(){ document.body.classList.remove('nochrome'); setPanel(true); }
+
+/* ---------- pick and drag (pointer -> canvas pixels) ---------- */
+let dragging=false,grabX=0,grabY=0,lastTap=0;
+function toLogical(e){
+  const r=cv.getBoundingClientRect();
+  return {x:((e.clientX-r.left)*S.dpr - S.ox)/S.scale,
+          y:((e.clientY-r.top )*S.dpr - S.oy)/S.scale};
+}
+cv.addEventListener('pointerdown',e=>{
+  const now=Date.now();
+  if(now-lastTap<350) showChrome();
+  lastTap=now;
+  if(S.mode!=='blob') return;
+  const p=toLogical(e);
+  let best=-1,bd=Infinity;
+  S.blobs.forEach((b,i)=>{
+    const d=Math.hypot(b.x-p.x,b.y-p.y);
+    const reach=Math.max(44*S.dpr/S.scale, K*Math.max(b.sx,b.sy));
+    if(d<reach&&d<bd){ bd=d; best=i; }
+  });
+  if(best>=0){ S.sel=best; syncBlobUI(); }
+  const b=S.blobs[S.sel];
+  grabX=p.x-b.x; grabY=p.y-b.y;
+  dragging=true; cv.setPointerCapture(e.pointerId); draw();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const p=toLogical(e),b=S.blobs[S.sel];
+  b.x=p.x-grabX; b.y=p.y-grabY; clampToCanvas(b); draw();
+});
+cv.addEventListener('pointerup',()=>{ if(dragging){ dragging=false; store(); } });
+cv.addEventListener('pointercancel',()=>dragging=false);
+
+/* ---------- full screen + wake lock ---------- */
+document.getElementById('full').addEventListener('click',async()=>{
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(err){}
+  setTimeout(resize,250);
+});
+let lock=null;
+document.getElementById('awake').addEventListener('click',async function(){
+  try{
+    if(lock){ await lock.release(); lock=null; this.classList.remove('on'); }
+    else { lock=await navigator.wakeLock.request('screen'); this.classList.add('on'); }
+  }catch(err){ this.textContent='No wake lock'; }
+});
+document.addEventListener('visibilitychange',async()=>{
+  if(lock&&document.visibilityState==='visible'){
+    try{ lock=await navigator.wakeLock.request('screen'); }catch(err){}
+  }
+});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+
+/* ---------- start ---------- */
+syncAllUI();
+resize();
+(async function(){
+  if(await restoreSidecar()) return;
+  restoreLocal();
+})();
+})();
+</script>
+</body>
+</html>
